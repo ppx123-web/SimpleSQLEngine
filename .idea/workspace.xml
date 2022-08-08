@@ -4,7 +4,15 @@
     <option name="autoReloadType" value="ALL" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e2ae7b6c-f318-4398-ad05-add6a2684865" name="Changes" comment="" />
+    <list default="true" id="e2ae7b6c-f318-4398-ad05-add6a2684865" name="Changes" comment="Changes">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/bin/go_build_queryplan" beforeDir="false" afterPath="$PROJECT_DIR$/bin/go_build_queryplan" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/sql1.mdf" beforeDir="false" afterPath="$PROJECT_DIR$/sql1.mdf" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/sql2.mdf" beforeDir="false" afterPath="$PROJECT_DIR$/sql2.mdf" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sqlparser/ast2query.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/sqlparser/ast2query.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sqlparser/optimizer.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/sqlparser/optimizer.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sqlparser/query.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/sqlparser/query.go" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -18,6 +26,9 @@
     </option>
   </component>
   <component name="GOROOT" url="file:///usr/lib/go" />
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
   </component>
@@ -97,8 +108,8 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/src/sqlparser/query.go</url>
-          <line>36</line>
-          <option name="timeStamp" value="40" />
+          <line>35</line>
+          <option name="timeStamp" value="12" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

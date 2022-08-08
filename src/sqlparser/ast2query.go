@@ -19,7 +19,7 @@ func LogFuncName() {
 type OpType int
 
 const (
-	SELECT       OpType = iota + 1 //Select Fields
+	Project      OpType = iota + 1 //Select Fields
 	Join                           //Join Table
 	Table                          //Scan Table
 	GroupBy                        //GroupBy
@@ -92,6 +92,10 @@ func (node *OpNode) traverse(s OpNodeVisitor) {
 	return
 }
 
+type OpField struct {
+	Fields []*ast.SelectField
+}
+
 type OpJoin struct {
 	Tp ast.JoinType
 	On *ast.OnCondition
@@ -102,11 +106,11 @@ type OpTable struct {
 }
 
 type OpHavingFilter struct {
-	Expr *ast.ExprNode
+	Expr []*ast.BinaryOperationExpr
 }
 
 type OpWhereFilter struct {
-	BiOpExpr *ast.BinaryOperationExpr
+	BiOpExpr []*ast.BinaryOperationExpr
 }
 
 type OpOrderBy struct {
@@ -124,11 +128,49 @@ func OpNodeInit(tp OpType, op interface{}) *OpNode {
 	return node
 }
 
+func (cur *OpNode)OpNodeInsert(node *OpNode) {
+	left := cur.left
+	right := cur.right
+	cur.left = node
+	node.parent = cur
+	node.left = left
+	node.right = right
+	if left != nil {
+		left.parent = node
+	}
+	if right != nil {
+		right.parent = node
+	}
+}
+
+func (cur *OpNode)OpNodeDelete() {
+	left := cur.left
+	right := cur.right
+	par := cur.parent
+	if par == nil && right != nil {
+		LogFuncName()
+		panic("Wrong Node Delete")
+	}
+	if par != nil {
+		par.left = left
+		par.right = right
+		left.parent = par
+		if right != nil {
+			right.parent = par
+		}
+	} else {
+		left.parent = nil
+	}
+	cur.left, cur.right, cur.parent = nil, nil, nil
+
+}
+
+
 func (s *Stack) Enter(in ast.Node) (ast.Node, bool) {
 	switch in := in.(type) {
 	case *ast.BinaryOperationExpr, *ast.Limit, *ast.FieldList,
 		*ast.HavingClause, *ast.OrderByClause, *ast.GroupByClause,
-		*ast.OnCondition:
+		*ast.OnCondition, ast.ExprNode:
 		return in, true
 	default:
 		return in, false
@@ -145,8 +187,8 @@ func (s *Stack) Leave(in ast.Node) (ast.Node, bool) {
 		s.sddSelectStmt(in)
 	case *ast.TableRefsClause:
 		s.sddFrom(in)
-	case *ast.BinaryOperationExpr:
-		s.sddWhere(in)
+	case ast.ExprNode:
+		s.sddWhere(&in)
 	case *ast.GroupByClause:
 		s.sddGroupBy(in)
 	case *ast.OrderByClause:
@@ -166,19 +208,47 @@ func GetQuery(root *ast.StmtNode) *OpNode {
 	if _, ok := (*root).(*ast.SelectStmt); ok {
 		(*root).Accept(OpStack)
 	}
-	TableNode := OpStack.Pop()
-	SelectNode := OpStack.Pop()
-	SelectNode.left = TableNode
-	TableNode.parent = SelectNode
-	return SelectNode
+	return OpStack.Pop()
+}
+
+func OutputQuery(root *OpNode, deep int) {
+	if root == nil {
+		return
+	}
+	for i := 0; i < deep; i++ {
+		fmt.Printf("    ")
+	}
+	fmt.Printf(" ")
+	switch root.Tp {
+	case Project:
+		fmt.Printf("Project")
+	case Join:
+		fmt.Printf("Join")
+	case Table:
+		fmt.Printf("Table")
+	case GroupBy:
+		fmt.Printf("GroupBy")
+	case HavingFilter:
+		fmt.Printf("HavingFilter")
+	case WhereFilter:
+		fmt.Printf("WhereFilter")
+	case OrderBy:
+		fmt.Printf("OrderBy")
+	case Limit:
+		fmt.Printf("Limit")
+	}
+	fmt.Printf("  %+v\n", root)
+	OutputQuery(root.left, deep+1)
+	OutputQuery(root.right, deep+1)
 }
 
 func (s *Stack) sddSelectStmt(root *ast.SelectStmt) {
 	LogFuncName()
-	newNode := OpNodeInit(Table, &OpTable{nil})
-	newNode.left = s.Pop()
-	newNode.left.parent = newNode
-	s.Push(newNode)
+	TableNode := s.Pop()
+	SelectNode := s.Pop()
+	SelectNode.left = TableNode
+	TableNode.parent = SelectNode
+	s.Push(SelectNode)
 }
 
 func (s *Stack) sddFrom(root *ast.TableRefsClause) {
@@ -187,17 +257,13 @@ func (s *Stack) sddFrom(root *ast.TableRefsClause) {
 
 func (s *Stack) sddFieldList(root *ast.FieldList) {
 	LogFuncName()
-	newNode := OpNodeInit(SELECT, root.Fields)
-	if !s.Empty() {
-		newNode.left = s.Pop()
-		newNode.left.parent = newNode
-	}
+	newNode := OpNodeInit(Project, &OpField{root.Fields})
 	s.Push(newNode)
 }
 
-func (s *Stack) sddWhere(root *ast.BinaryOperationExpr) {
+func (s *Stack) sddWhere(root *ast.ExprNode) {
 	LogFuncName()
-	newNode := OpNodeInit(WhereFilter, &OpWhereFilter{root})
+	newNode := OpNodeInit(WhereFilter, &OpWhereFilter{BinaryExpr(root)})
 	newNode.left = s.Pop()
 	newNode.left.parent = newNode
 	s.Push(newNode)
@@ -213,7 +279,7 @@ func (s *Stack) sddGroupBy(root *ast.GroupByClause) {
 
 func (s *Stack) sddHaving(root *ast.HavingClause) {
 	LogFuncName()
-	newNode := OpNodeInit(HavingFilter, &OpHavingFilter{&root.Expr})
+	newNode := OpNodeInit(HavingFilter, &OpHavingFilter{BinaryExpr(&root.Expr)})
 	newNode.left = s.Pop()
 	newNode.left.parent = newNode
 	s.Push(newNode)
@@ -252,21 +318,24 @@ func (s *Stack) sddTableSource(root *ast.TableSource) {
 	newNode := OpNodeInit(Table, &OpTable{root})
 	switch root.Source.(type) {
 	case *ast.SelectStmt:
+		newNode.left = s.Pop()
+		newNode.left.parent = newNode
 	case *ast.TableName:
-		s.Push(newNode)
 	default:
 		panic("TableSource Error Type")
 	}
+	s.Push(newNode)
 }
 
 func BinaryExpr(root *ast.ExprNode) []*ast.BinaryOperationExpr {
 	if root, ok := (*root).(*ast.BinaryOperationExpr); ok {
 		switch root.Op {
-		case opcode.LogicAnd, opcode.LogicOr, opcode.LogicXor:
+		case opcode.LogicAnd:
 			ret := append(BinaryExpr(&root.L), BinaryExpr(&root.R)...)
 			return ret
 		default:
-			return nil
+			ret := []*ast.BinaryOperationExpr{root}
+			return ret
 		}
 	} else {
 		return nil

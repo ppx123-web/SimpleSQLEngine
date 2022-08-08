@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	filepath = "sql2.mdf"
+	filepath = "sql1.mdf"
 )
 
 func parse(sql string) (*ast.StmtNode, error) {
@@ -33,6 +33,5 @@ func main() {
 		return
 	}
 	query := GetQuery(astNode)
-	_ = query
-	fmt.Printf("%v\n", query)
+	OutputQuery(query, 0)
 }
