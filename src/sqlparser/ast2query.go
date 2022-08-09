@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"github.com/pingcap/tidb/parser/ast"
 	"github.com/pingcap/tidb/parser/opcode"
+	"github.com/pingcap/tidb/parser/test_driver"
 	"runtime"
 )
 
-var LogFuncNameFlag bool = false
+var LogFuncNameFlag = false
 
 func LogFuncName() {
 	if LogFuncNameFlag {
@@ -16,155 +17,46 @@ func LogFuncName() {
 	}
 }
 
-type OpType int
-
-const (
-	Project      OpType = iota + 1 //Select Fields
-	Join                           //Join Table
-	Table                          //Scan Table
-	GroupBy                        //GroupBy
-	HavingFilter                   //Having
-	WhereFilter                    // Where
-	OrderBy                        //OrderBy
-	Limit                          //Limit
-)
-
-type Stack struct {
-	size int
-	data []*OpNode
-}
-
-func (s *Stack) Push(value *OpNode) {
-	s.data = append(s.data, value)
-	s.size++
-	return
-}
-
-func (s *Stack) Pop() (ret *OpNode) {
-	if s.size == 0 {
-		panic("Pop From Empty Stack")
+func GetQuery(root *ast.StmtNode) *LogicalPlan {
+	OpStack := new(Stack)
+	if _, ok := (*root).(*ast.SelectStmt); ok {
+		(*root).Accept(OpStack)
 	}
-	ret = s.data[s.size-1]
-	s.data = s.data[:s.size-1]
-	s.size--
-	return
+	return OpStack.Pop()
 }
 
-func (s *Stack) top() (ret *OpNode) {
-	ret = s.data[s.size-1]
-	return
-}
-
-func (s *Stack) Empty() bool {
-	if s.size == 0 {
-		return true
-	} else {
-		return false
-	}
-}
-
-func (s *Stack) Size() int {
-	return s.size
-}
-
-type OpNode struct {
-	Vis                 int
-	Tp                  OpType
-	Op                  interface{}
-	left, right, parent *OpNode
-}
-
-type OpNodeVisitor interface {
-	OpNodeEnter(node *OpNode) (skip bool)
-	OpNodeLeave(node *OpNode)
-}
-
-func (node *OpNode) traverse(s OpNodeVisitor) {
-	if node == nil {
+func OutputQuery(root *LogicalPlan, deep int) {
+	if root == nil {
 		return
 	}
-	skip := s.OpNodeEnter(node)
-	if !skip {
-		node.left.traverse(s)
-		node.right.traverse(s)
+	for i := 0; i < deep; i++ {
+		fmt.Printf("    ")
 	}
-	s.OpNodeLeave(node)
-	return
-}
-
-type OpField struct {
-	Fields []*ast.SelectField
-}
-
-type OpJoin struct {
-	Tp ast.JoinType
-	On *ast.OnCondition
-}
-
-type OpTable struct {
-	Table *ast.TableSource
-}
-
-type OpHavingFilter struct {
-	Expr []*ast.BinaryOperationExpr
-}
-
-type OpWhereFilter struct {
-	BiOpExpr []*ast.BinaryOperationExpr
-}
-
-type OpOrderBy struct {
-	Order *ast.OrderByClause
-}
-
-type OpLimit struct {
-	Limit *ast.Limit
-}
-
-func OpNodeInit(tp OpType, op interface{}) *OpNode {
-	node := new(OpNode)
-	node.Tp = tp
-	node.Op = op
-	return node
-}
-
-func (cur *OpNode)OpNodeInsert(node *OpNode) {
-	left := cur.left
-	right := cur.right
-	cur.left = node
-	node.parent = cur
-	node.left = left
-	node.right = right
-	if left != nil {
-		left.parent = node
+	fmt.Printf(" ")
+	switch root.Tp {
+	case Project:
+		fmt.Printf("Project %v", root.Content.(*ProjectionNode).cols)
+	case Join:
+		fmt.Printf("Join %v", root.Content.(*JoinNode).On)
+	case Table:
+		fmt.Printf("Table %v", root.Content.(*TableNode).Table)
+	case GroupBy:
+		fmt.Printf("GroupBy")
+	case HavingFilter:
+		fmt.Printf("HavingFilter")
+	case WhereFilter:
+		fmt.Printf("WhereFilter %v", root.Content.(*WhereFilterNode).BiOpExpr)
+	case OrderBy:
+		fmt.Printf("OrderBy")
+	case Limit:
+		fmt.Printf("Limit %v", root.Content.(*LimitNode))
 	}
-	if right != nil {
-		right.parent = node
+	fmt.Printf("\n")
+	//fmt.Printf("  %+v\n", root)
+	for _, child := range root.child {
+		OutputQuery(&child, deep+1)
 	}
 }
-
-func (cur *OpNode)OpNodeDelete() {
-	left := cur.left
-	right := cur.right
-	par := cur.parent
-	if par == nil && right != nil {
-		LogFuncName()
-		panic("Wrong Node Delete")
-	}
-	if par != nil {
-		par.left = left
-		par.right = right
-		left.parent = par
-		if right != nil {
-			right.parent = par
-		}
-	} else {
-		left.parent = nil
-	}
-	cur.left, cur.right, cur.parent = nil, nil, nil
-
-}
-
 
 func (s *Stack) Enter(in ast.Node) (ast.Node, bool) {
 	switch in := in.(type) {
@@ -180,151 +72,209 @@ func (s *Stack) Enter(in ast.Node) (ast.Node, bool) {
 func (s *Stack) Leave(in ast.Node) (ast.Node, bool) {
 	switch in := in.(type) {
 	case *ast.Join:
-		s.sddJoin(in)
+		s.Join(in)
 	case *ast.TableSource:
-		s.sddTableSource(in)
+		s.TableSource(in)
 	case *ast.SelectStmt:
-		s.sddSelectStmt(in)
-	case *ast.TableRefsClause:
-		s.sddFrom(in)
+		s.SelectStmt()
 	case ast.ExprNode:
-		s.sddWhere(&in)
+		s.Where(&in)
 	case *ast.GroupByClause:
-		s.sddGroupBy(in)
+		s.GroupBy(in)
 	case *ast.OrderByClause:
-		s.sddOrderBy(in)
+		s.OrderBy(in)
 	case *ast.HavingClause:
-		s.sddHaving(in)
+		s.Having(in)
 	case *ast.Limit:
-		s.sddLimit(in)
+		s.Limit(in)
 	case *ast.FieldList:
-		s.sddFieldList(in)
+		s.FieldList(in)
 	}
 	return in, true
 }
 
-func GetQuery(root *ast.StmtNode) *OpNode {
-	OpStack := new(Stack)
-	if _, ok := (*root).(*ast.SelectStmt); ok {
-		(*root).Accept(OpStack)
-	}
-	return OpStack.Pop()
-}
-
-func OutputQuery(root *OpNode, deep int) {
-	if root == nil {
-		return
-	}
-	for i := 0; i < deep; i++ {
-		fmt.Printf("    ")
-	}
-	fmt.Printf(" ")
-	switch root.Tp {
-	case Project:
-		fmt.Printf("Project")
-	case Join:
-		fmt.Printf("Join")
-	case Table:
-		fmt.Printf("Table")
-	case GroupBy:
-		fmt.Printf("GroupBy")
-	case HavingFilter:
-		fmt.Printf("HavingFilter")
-	case WhereFilter:
-		fmt.Printf("WhereFilter")
-	case OrderBy:
-		fmt.Printf("OrderBy")
-	case Limit:
-		fmt.Printf("Limit")
-	}
-	fmt.Printf("  %+v\n", root)
-	OutputQuery(root.left, deep+1)
-	OutputQuery(root.right, deep+1)
-}
-
-func (s *Stack) sddSelectStmt(root *ast.SelectStmt) {
+func (s *Stack) SelectStmt() {
 	LogFuncName()
 	TableNode := s.Pop()
 	SelectNode := s.Pop()
-	SelectNode.left = TableNode
+	SelectNode.child = append(SelectNode.child, *TableNode)
 	TableNode.parent = SelectNode
 	s.Push(SelectNode)
 }
 
-func (s *Stack) sddFrom(root *ast.TableRefsClause) {
-	LogFuncName()
-}
+//func (s *Stack) From(root *ast.TableRefsClause) {
+//	LogFuncName()
+//}
 
-func (s *Stack) sddFieldList(root *ast.FieldList) {
+func (s *Stack) FieldList(root *ast.FieldList) {
 	LogFuncName()
-	newNode := OpNodeInit(Project, &OpField{root.Fields})
+	newNode := OpNodeInit(Project, &ProjectionNode{AnalyzeColumns(root.Fields)})
 	s.Push(newNode)
 }
 
-func (s *Stack) sddWhere(root *ast.ExprNode) {
+func (s *Stack) Where(root *ast.ExprNode) {
 	LogFuncName()
-	newNode := OpNodeInit(WhereFilter, &OpWhereFilter{BinaryExpr(root)})
-	newNode.left = s.Pop()
-	newNode.left.parent = newNode
+	newNode := OpNodeInit(WhereFilter, &WhereFilterNode{AnalyzeLogicalAndExpr(root)})
+	newNode.child = append(newNode.child, *s.Pop())
+	newNode.child[len(newNode.child)-1].parent = newNode
 	s.Push(newNode)
 }
 
-func (s *Stack) sddGroupBy(root *ast.GroupByClause) {
+func (s *Stack) GroupBy(root *ast.GroupByClause) {
 	LogFuncName()
 	newNode := OpNodeInit(GroupBy, root.Items)
-	newNode.left = s.Pop()
-	newNode.left.parent = newNode
+	newNode.child = append(newNode.child, *s.Pop())
+	newNode.child[len(newNode.child)-1].parent = newNode
 	s.Push(newNode)
 }
 
-func (s *Stack) sddHaving(root *ast.HavingClause) {
+func (s *Stack) Having(root *ast.HavingClause) {
 	LogFuncName()
-	newNode := OpNodeInit(HavingFilter, &OpHavingFilter{BinaryExpr(&root.Expr)})
-	newNode.left = s.Pop()
-	newNode.left.parent = newNode
+	newNode := OpNodeInit(HavingFilter, &HavingFilterNode{AnalyzeLogicalAndExpr(&root.Expr)})
+	newNode.child = append(newNode.child, *s.Pop())
+	newNode.child[len(newNode.child)-1].parent = newNode
 	s.Push(newNode)
 }
 
-func (s *Stack) sddOrderBy(root *ast.OrderByClause) {
+func (s *Stack) OrderBy(root *ast.OrderByClause) {
 	LogFuncName()
-	newNode := OpNodeInit(OrderBy, &OpOrderBy{root})
-	newNode.left = s.Pop()
-	newNode.left.parent = newNode
+	newNode := OpNodeInit(OrderBy, &OrderByNode{AnalyzeOrderByNode(root)})
+	newNode.child = append(newNode.child, *s.Pop())
+	newNode.child[len(newNode.child)-1].parent = newNode
 	s.Push(newNode)
 }
 
-func (s *Stack) sddLimit(root *ast.Limit) {
+func (s *Stack) Limit(root *ast.Limit) {
 	LogFuncName()
-	newNode := OpNodeInit(Limit, &OpLimit{root})
-	newNode.left = s.Pop()
-	newNode.left.parent = newNode
+	e1, e2 := AnalyzeLimitNode(root)
+	newNode := OpNodeInit(Limit, &LimitNode{e1, e2})
+	newNode.child = append(newNode.child, *s.Pop())
+	newNode.child[len(newNode.child)-1].parent = newNode
 	s.Push(newNode)
 }
 
-func (s *Stack) sddJoin(root *ast.Join) {
+func (s *Stack) Join(root *ast.Join) {
 	LogFuncName()
-	newNode := OpNodeInit(Join, &OpJoin{root.Tp, root.On})
+	newNode := OpNodeInit(Join, &JoinNode{root.Tp, AnalyzeJoinNode(root)})
 	if root.Right != nil {
-		newNode.right = s.Pop()
-		newNode.right.parent = newNode
+		newNode.child = append(newNode.child, *s.Pop())
+		newNode.child[len(newNode.child)-1].parent = newNode
 	}
-	newNode.left = s.Pop()
-	newNode.left.parent = newNode
+	newNode.child = append(newNode.child, *s.Pop())
+	newNode.child[len(newNode.child)-1].parent = newNode
 	s.Push(newNode)
 }
 
-func (s *Stack) sddTableSource(root *ast.TableSource) {
+func (s *Stack) TableSource(root *ast.TableSource) {
 	LogFuncName()
-	newNode := OpNodeInit(Table, &OpTable{root})
 	switch root.Source.(type) {
 	case *ast.SelectStmt:
-		newNode.left = s.Pop()
-		newNode.left.parent = newNode
+		newNode := OpNodeInit(Table, &TableNode{ColumnName{TblName: root.AsName.String()}})
+		newNode.child = append(newNode.child, *s.Pop())
+		newNode.child[len(newNode.child)-1].parent = newNode
+		s.Push(newNode)
 	case *ast.TableName:
+		newNode := OpNodeInit(Table, &TableNode{
+			ColumnName{TblName: root.AsName.String(),
+				OrigTblName: root.Source.(*ast.TableName).Name.String()}})
+		s.Push(newNode)
 	default:
 		panic("TableSource Error Type")
 	}
-	s.Push(newNode)
+
+}
+
+func AnalyzeColumns(root []*ast.SelectField) []Expression {
+	var ret []Expression
+	for _, field := range root {
+		if field.WildCard != nil {
+			expr := Expression{
+				expr:   []Datum{InitSetValue("*")},
+				Fields: make(map[string]ColumnName),
+			}
+			ret = append(ret, expr)
+		} else {
+			expr := AnalyzeExprNode(&field.Expr)
+			ret = append(ret, expr)
+		}
+	}
+	return ret
+}
+
+func AnalyzeOrderByNode(root *ast.OrderByClause) []ByItem {
+	var ret []ByItem
+	for _, expr := range root.Items {
+		var item ByItem
+		item.Desc = expr.Desc
+		expr.Expr.Accept(&item.Item)
+		ret = append(ret, item)
+	}
+	return ret
+}
+
+func AnalyzeJoinNode(root *ast.Join) []Expression {
+	if root.On == nil {
+		return nil
+	} else {
+		return AnalyzeLogicalAndExpr(&root.On.Expr)
+	}
+}
+
+func AnalyzeLimitNode(root *ast.Limit) (Expression, Expression) {
+	var Count, Offset Expression
+	Count.Fields = make(map[string]ColumnName)
+	Offset.Fields = make(map[string]ColumnName)
+	root.Count.Accept(&Count)
+	root.Offset.Accept(&Offset)
+	return Count, Offset
+}
+
+func AnalyzeExprNode(root *ast.ExprNode) Expression {
+	var ret Expression
+	ret.Fields = make(map[string]ColumnName)
+	(*root).Accept(&ret)
+	return ret
+}
+
+func AnalyzeLogicalAndExpr(root *ast.ExprNode) []Expression {
+	var ret []Expression
+	BiOpExpr := BinaryExpr(root)
+	for _, node := range BiOpExpr {
+		var tempExpr Expression
+		tempExpr.Fields = make(map[string]ColumnName)
+		(*node).Accept(&tempExpr)
+		ret = append(ret, tempExpr)
+	}
+	return ret
+}
+
+func (expr *Expression) Enter(in ast.Node) (ast.Node, bool) {
+	switch root := in.(type) {
+	case *ast.BinaryOperationExpr:
+		expr.expr = append(expr.expr, InitSetValue("("))
+	default:
+		_ = root
+	}
+	return in, false
+}
+
+func (expr *Expression) Leave(in ast.Node) (ast.Node, bool) {
+	switch root := in.(type) {
+	case *test_driver.ValueExpr:
+		expr.expr = append(expr.expr, Datum{root.Datum})
+	case *ast.BinaryOperationExpr:
+		expr.expr = append(expr.expr, InitSetValue(root.Op.String()), InitSetValue(")"))
+	case *ast.ColumnNameExpr:
+		colName := root.Name.Table.String() + "." + root.Name.Name.String()
+		expr.expr = append(expr.expr, InitSetValue(colName))
+		expr.Fields[colName] = ColumnName{
+			//OrigTblName: root.Refer.Table.Name.String(),
+			//OrigColName: root.Refer.Column.Name.String(),
+			TblName: root.Name.Table.String(),
+			ColName: root.Name.Name.String(),
+		}
+	}
+	return in, true
 }
 
 func BinaryExpr(root *ast.ExprNode) []*ast.BinaryOperationExpr {
