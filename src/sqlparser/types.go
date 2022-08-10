@@ -11,8 +11,8 @@ const (
 	Join                           //Join Table
 	Table                          //Scan Table
 	GroupBy                        //GroupBy
-	HavingFilter                   //Having
-	WhereFilter                    // Where
+	HavingFilter                   //HavingFilter
+	Filter                         //Where Filter
 	OrderBy                        //OrderBy
 	Limit                          //Limit
 )
@@ -103,6 +103,9 @@ type JoinNode struct {
 	On []Expression
 }
 
+// TableNode : if a sub query, table TblName means the query's AsName, OrigXXName unused
+//
+//	if a table ,    table TblName means the table's AsName, OrigXXName is resolved in Analyzer
 type TableNode struct {
 	Table ColumnName
 }
@@ -127,6 +130,13 @@ type OrderByNode struct {
 type LimitNode struct {
 	Count  Expression
 	Offset Expression
+}
+
+func LogicalPlanNodeEqual(p1 *LogicalPlan, p2 *LogicalPlan) bool {
+	if p1 == p2 {
+		return true
+	}
+	return p1.Tp == p2.Tp && p1.Content == p2.Content
 }
 
 func OpNodeInit(tp OpType, op interface{}) *LogicalPlan {

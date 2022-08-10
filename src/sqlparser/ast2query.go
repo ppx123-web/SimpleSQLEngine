@@ -44,7 +44,7 @@ func OutputQuery(root *LogicalPlan, deep int) {
 		fmt.Printf("GroupBy")
 	case HavingFilter:
 		fmt.Printf("HavingFilter")
-	case WhereFilter:
+	case Filter:
 		fmt.Printf("WhereFilter %v", root.Content.(*WhereFilterNode).BiOpExpr)
 	case OrderBy:
 		fmt.Printf("OrderBy")
@@ -114,7 +114,7 @@ func (s *Stack) FieldList(root *ast.FieldList) {
 
 func (s *Stack) Where(root *ast.ExprNode) {
 	LogFuncName()
-	newNode := OpNodeInit(WhereFilter, &WhereFilterNode{AnalyzeLogicalAndExpr(root)})
+	newNode := OpNodeInit(Filter, &WhereFilterNode{AnalyzeLogicalAndExpr(root)})
 	newNode.child = append(newNode.child, *s.Pop())
 	newNode.child[len(newNode.child)-1].parent = newNode
 	s.Push(newNode)
@@ -268,6 +268,7 @@ func (expr *Expression) Leave(in ast.Node) (ast.Node, bool) {
 		colName := root.Name.Table.String() + "." + root.Name.Name.String()
 		expr.expr = append(expr.expr, InitSetValue(colName))
 		expr.Fields[colName] = ColumnName{
+			//TODO:
 			//OrigTblName: root.Refer.Table.Name.String(),
 			//OrigColName: root.Refer.Column.Name.String(),
 			TblName: root.Name.Table.String(),
