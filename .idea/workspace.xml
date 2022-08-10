@@ -5,12 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="e2ae7b6c-f318-4398-ad05-add6a2684865" name="Changes" comment="Changes">
-      <change afterPath="$PROJECT_DIR$/src/sqlparser/PushPredicatoeThroughJoin.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/sqlparser/PushPredicatoeThroughNonJoin.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sqlparser/ast2query.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/sqlparser/ast2query.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sqlparser/optimizer.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/sqlparser/optimizer.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sqlparser/types.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/sqlparser/types.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sqlparser/PushPredicatoeThroughNonJoin.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/sqlparser/PushPredicatoeThroughNonJoin.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

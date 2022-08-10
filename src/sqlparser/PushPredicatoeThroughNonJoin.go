@@ -1,9 +1,18 @@
 package main
 
-import "github.com/pingcap/tidb/parser/ast"
+import (
+	"github.com/pingcap/tidb/parser/ast"
+)
 
 func (plan *LogicalPlan) PushPredicateThroughNonJoin() {
-
+	for {
+		var modify = false
+		modify = modify || PredicatePush2Project(plan)
+		modify = modify || PredicatePush2Aggregate(plan)
+		if !modify {
+			break
+		}
+	}
 }
 
 func PredicatePush2Project(root *LogicalPlan) bool {
@@ -25,17 +34,5 @@ func CheckFieldsDeterministic(list *ast.FieldList) bool {
 }
 
 func PredicatePush2Aggregate(root *LogicalPlan) bool {
-
-}
-
-func PredicatePush2Join() bool {
-
-}
-
-func LimitPush2Project() bool {
-
-}
-
-func LimitPush2Join() bool {
 
 }
