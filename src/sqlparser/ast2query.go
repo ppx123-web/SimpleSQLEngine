@@ -35,21 +35,21 @@ func OutputQuery(root *LogicalPlan, deep int) {
 	fmt.Printf(" ")
 	switch root.Tp {
 	case Project:
-		fmt.Printf("Project %v", root.Content.(*ProjectionNode).cols)
+		fmt.Printf("Project")
 	case Join:
-		fmt.Printf("Join %v", root.Content.(*JoinNode).On)
+		fmt.Printf("Join %v", root.Content.(JoinNode).On)
 	case Table:
-		fmt.Printf("Table %v", root.Content.(*TableNode).Table)
+		fmt.Printf("Table %v", root.Content.(TableNode).Table)
 	case GroupBy:
 		fmt.Printf("GroupBy")
 	case HavingFilter:
 		fmt.Printf("HavingFilter")
 	case Filter:
-		fmt.Printf("WhereFilter %v", root.Content.(*WhereFilterNode).BiOpExpr)
+		fmt.Printf("Filter")
 	case OrderBy:
 		fmt.Printf("OrderBy")
 	case Limit:
-		fmt.Printf("Limit %v", root.Content.(*LimitNode))
+		fmt.Printf("Limit")
 	}
 	fmt.Printf("\n")
 	//fmt.Printf("  %+v\n", root)
@@ -76,7 +76,7 @@ func (s *Stack) Leave(in ast.Node) (ast.Node, bool) {
 	case *ast.TableSource:
 		s.TableSource(in)
 	case *ast.SelectStmt:
-		s.SelectStmt()
+		//s.SelectStmt()
 	case ast.ExprNode:
 		s.Where(&in)
 	case *ast.GroupByClause:
@@ -95,11 +95,15 @@ func (s *Stack) Leave(in ast.Node) (ast.Node, bool) {
 
 func (s *Stack) SelectStmt() {
 	LogFuncName()
-	TableNode := s.Pop()
-	SelectNode := s.Pop()
-	SelectNode.child = append(SelectNode.child, *TableNode)
-	TableNode.parent = SelectNode
-	s.Push(SelectNode)
+	switch s.top().Tp {
+	case HavingFilter, GroupBy, Filter, Join:
+		TableNode := s.Pop()
+		SelectNode := s.Pop()
+		SelectNode.child = append(SelectNode.child, *TableNode)
+		TableNode.parent = SelectNode
+		s.Push(SelectNode)
+	}
+
 }
 
 //func (s *Stack) From(root *ast.TableRefsClause) {
@@ -108,13 +112,13 @@ func (s *Stack) SelectStmt() {
 
 func (s *Stack) FieldList(root *ast.FieldList) {
 	LogFuncName()
-	newNode := OpNodeInit(Project, &ProjectionNode{AnalyzeColumns(root.Fields)})
+	newNode := OpNodeInit(Project, ProjectionNode{AnalyzeColumns(root.Fields)})
 	s.Push(newNode)
 }
 
 func (s *Stack) Where(root *ast.ExprNode) {
 	LogFuncName()
-	newNode := OpNodeInit(Filter, &WhereFilterNode{AnalyzeLogicalAndExpr(root)})
+	newNode := OpNodeInit(Filter, WhereFilterNode{AnalyzeLogicalAndExpr(root)})
 	newNode.child = append(newNode.child, *s.Pop())
 	newNode.child[len(newNode.child)-1].parent = newNode
 	s.Push(newNode)
@@ -130,7 +134,7 @@ func (s *Stack) GroupBy(root *ast.GroupByClause) {
 
 func (s *Stack) Having(root *ast.HavingClause) {
 	LogFuncName()
-	newNode := OpNodeInit(HavingFilter, &HavingFilterNode{AnalyzeLogicalAndExpr(&root.Expr)})
+	newNode := OpNodeInit(HavingFilter, HavingFilterNode{AnalyzeLogicalAndExpr(&root.Expr)})
 	newNode.child = append(newNode.child, *s.Pop())
 	newNode.child[len(newNode.child)-1].parent = newNode
 	s.Push(newNode)
@@ -138,7 +142,8 @@ func (s *Stack) Having(root *ast.HavingClause) {
 
 func (s *Stack) OrderBy(root *ast.OrderByClause) {
 	LogFuncName()
-	newNode := OpNodeInit(OrderBy, &OrderByNode{AnalyzeOrderByNode(root)})
+	s.SelectStmt()
+	newNode := OpNodeInit(OrderBy, OrderByNode{AnalyzeOrderByNode(root)})
 	newNode.child = append(newNode.child, *s.Pop())
 	newNode.child[len(newNode.child)-1].parent = newNode
 	s.Push(newNode)
@@ -147,7 +152,7 @@ func (s *Stack) OrderBy(root *ast.OrderByClause) {
 func (s *Stack) Limit(root *ast.Limit) {
 	LogFuncName()
 	e1, e2 := AnalyzeLimitNode(root)
-	newNode := OpNodeInit(Limit, &LimitNode{e1, e2})
+	newNode := OpNodeInit(Limit, LimitNode{e1, e2})
 	newNode.child = append(newNode.child, *s.Pop())
 	newNode.child[len(newNode.child)-1].parent = newNode
 	s.Push(newNode)
@@ -155,7 +160,7 @@ func (s *Stack) Limit(root *ast.Limit) {
 
 func (s *Stack) Join(root *ast.Join) {
 	LogFuncName()
-	newNode := OpNodeInit(Join, &JoinNode{root.Tp, AnalyzeJoinNode(root)})
+	newNode := OpNodeInit(Join, JoinNode{root.Tp, AnalyzeJoinNode(root)})
 	if root.Right != nil {
 		newNode.child = append(newNode.child, *s.Pop())
 		newNode.child[len(newNode.child)-1].parent = newNode
@@ -169,12 +174,12 @@ func (s *Stack) TableSource(root *ast.TableSource) {
 	LogFuncName()
 	switch root.Source.(type) {
 	case *ast.SelectStmt:
-		newNode := OpNodeInit(Table, &TableNode{ColumnName{TblName: root.AsName.String()}})
+		newNode := OpNodeInit(Table, TableNode{ColumnName{TblName: root.AsName.String()}})
 		newNode.child = append(newNode.child, *s.Pop())
 		newNode.child[len(newNode.child)-1].parent = newNode
 		s.Push(newNode)
 	case *ast.TableName:
-		newNode := OpNodeInit(Table, &TableNode{
+		newNode := OpNodeInit(Table, TableNode{
 			ColumnName{TblName: root.AsName.String(),
 				OrigTblName: root.Source.(*ast.TableName).Name.String()}})
 		s.Push(newNode)
@@ -191,6 +196,7 @@ func AnalyzeColumns(root []*ast.SelectField) []Expression {
 			expr := Expression{
 				expr:   []Datum{InitSetValue("*")},
 				Fields: make(map[string]ColumnName),
+				AsName: field.AsName.String(),
 			}
 			ret = append(ret, expr)
 		} else {
@@ -205,6 +211,7 @@ func AnalyzeOrderByNode(root *ast.OrderByClause) []ByItem {
 	var ret []ByItem
 	for _, expr := range root.Items {
 		var item ByItem
+		item.Item.Fields = make(map[string]ColumnName)
 		item.Desc = expr.Desc
 		expr.Expr.Accept(&item.Item)
 		ret = append(ret, item)
@@ -225,10 +232,14 @@ func AnalyzeLimitNode(root *ast.Limit) (Expression, Expression) {
 	Count.Fields = make(map[string]ColumnName)
 	Offset.Fields = make(map[string]ColumnName)
 	root.Count.Accept(&Count)
-	root.Offset.Accept(&Offset)
+	if root.Offset != nil {
+		root.Offset.Accept(&Offset)
+	}
 	return Count, Offset
 }
 
+// AnalyzeExprNode 使用后缀表达式进行ExprNode的表示，任意二元运算使用（）包裹
+// 对于函数，其对应的Datum的Args不为nil
 func AnalyzeExprNode(root *ast.ExprNode) Expression {
 	var ret Expression
 	ret.Fields = make(map[string]ColumnName)
@@ -252,6 +263,8 @@ func (expr *Expression) Enter(in ast.Node) (ast.Node, bool) {
 	switch root := in.(type) {
 	case *ast.BinaryOperationExpr:
 		expr.expr = append(expr.expr, InitSetValue("("))
+	case *ast.AggregateFuncExpr:
+		return in, true
 	default:
 		_ = root
 	}
@@ -261,18 +274,42 @@ func (expr *Expression) Enter(in ast.Node) (ast.Node, bool) {
 func (expr *Expression) Leave(in ast.Node) (ast.Node, bool) {
 	switch root := in.(type) {
 	case *test_driver.ValueExpr:
-		expr.expr = append(expr.expr, Datum{root.Datum})
+		expr.expr = append(expr.expr, Datum{root.Datum, nil})
+	case *ast.AggregateFuncExpr:
+		datum := InitSetValue(root.F)
+		for _, arg := range root.Args {
+			var ArgExpr Expression
+			ArgExpr.Fields = make(map[string]ColumnName)
+			arg.Accept(&ArgExpr)
+			datum.Args = append(datum.Args, ArgExpr)
+		}
+		expr.expr = append(expr.expr, datum)
+		//expr.expr = append(expr.expr, InitSetValue(")"))
 	case *ast.BinaryOperationExpr:
 		expr.expr = append(expr.expr, InitSetValue(root.Op.String()), InitSetValue(")"))
 	case *ast.ColumnNameExpr:
-		colName := root.Name.Table.String() + "." + root.Name.Name.String()
+		colName := ""
+		if root.Name.Table.String() != "" {
+			colName = root.Name.Table.String() + "." + root.Name.Name.String()
+		} else {
+			colName = root.Name.Name.String()
+		}
 		expr.expr = append(expr.expr, InitSetValue(colName))
-		expr.Fields[colName] = ColumnName{
-			//TODO:
-			//OrigTblName: root.Refer.Table.Name.String(),
-			//OrigColName: root.Refer.Column.Name.String(),
-			TblName: root.Name.Table.String(),
-			ColName: root.Name.Name.String(),
+		if root.Refer != nil {
+			expr.Fields[colName] = ColumnName{
+				OrigTblName: root.Refer.Table.Name.String(),
+				OrigColName: root.Refer.Column.Name.String(),
+				TblName:     root.Name.Table.String(),
+				ColName:     root.Name.Name.String(),
+			}
+		} else {
+			//Only used for test
+			expr.Fields[colName] = ColumnName{
+				OrigTblName: root.Name.Table.String(),
+				OrigColName: root.Name.Name.String(),
+				TblName:     root.Name.Table.String(),
+				ColName:     root.Name.Name.String(),
+			}
 		}
 	}
 	return in, true

@@ -1,3 +1,5 @@
-SELECT e.a + 2
+SELECT e.a + 2 AS t
 FROM  (SELECT * FROM t3 JOIN t4) AS e
 WHERE e.order < 213 and e.c < 2
+ORDER BY t
+LIMIT 4

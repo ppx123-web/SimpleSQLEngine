@@ -92,6 +92,7 @@ type ColumnName struct {
 type Expression struct {
 	expr   []Datum
 	Fields map[string]ColumnName
+	AsName string
 }
 
 type ProjectionNode struct {
@@ -115,7 +116,7 @@ type HavingFilterNode struct {
 }
 
 type WhereFilterNode struct {
-	BiOpExpr []Expression
+	Expr []Expression
 }
 
 type ByItem struct {
@@ -163,7 +164,16 @@ func (plan *LogicalPlan) LogicalPlanDelete() {
 		panic("Wrong Node Delete")
 	}
 	if par != nil {
-		par.child = plan.child
+		if len(par.child) == 1 {
+			par.child = plan.child
+		} else {
+			for i, child := range par.child {
+				if &child == plan {
+					par.child = append(par.child[:i], plan.child...)
+					break
+				}
+			}
+		}
 		plan.parent = nil
 	} else {
 		plan.child[0].parent = nil

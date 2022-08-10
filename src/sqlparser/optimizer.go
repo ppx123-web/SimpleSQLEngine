@@ -73,9 +73,9 @@ func (plan *LogicalPlan) IsNextType(Tp OpType) bool {
 }
 
 func LimitPush2Project() bool {
-
+	return true
 }
 
 func LimitPush2Join() bool {
-
+	return true
 }

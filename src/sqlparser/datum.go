@@ -4,6 +4,7 @@ import "github.com/pingcap/tidb/parser/test_driver"
 
 type Datum struct {
 	test_driver.Datum
+	Args []Expression
 }
 
 func DatumSetInt64(i int64) (d Datum) {
