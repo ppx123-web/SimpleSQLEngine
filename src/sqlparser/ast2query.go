@@ -35,21 +35,29 @@ func OutputQuery(root *LogicalPlan, deep int) {
 	fmt.Printf(" ")
 	switch root.Tp {
 	case Project:
-		fmt.Printf("Project")
+		fmt.Printf("Project: ")
+		root.Content.(ProjectionNode).print()
 	case Join:
-		fmt.Printf("Join %v", root.Content.(JoinNode).On)
+		fmt.Printf("Join: ")
+		root.Content.(JoinNode).print()
 	case Table:
-		fmt.Printf("Table %v", root.Content.(TableNode).Table)
+		fmt.Printf("Table: ")
+		root.Content.(TableNode).print()
 	case GroupBy:
-		fmt.Printf("GroupBy")
+		fmt.Printf("GroupBy: ")
+		root.Content.(GroupByNode).print()
 	case HavingFilter:
-		fmt.Printf("HavingFilter")
+		fmt.Printf("HavingFilter: ")
+		root.Content.(HavingFilterNode).print()
 	case Filter:
-		fmt.Printf("Filter")
+		fmt.Printf("Filter: ")
+		root.Content.(WhereFilterNode).print()
 	case OrderBy:
-		fmt.Printf("OrderBy")
+		fmt.Printf("OrderBy: ")
+		root.Content.(OrderByNode).print()
 	case Limit:
-		fmt.Printf("Limit")
+		fmt.Printf("Limit: ")
+		root.Content.(LimitNode).print()
 	}
 	fmt.Printf("\n")
 	//fmt.Printf("  %+v\n", root)
@@ -126,7 +134,7 @@ func (s *Stack) Where(root *ast.ExprNode) {
 
 func (s *Stack) GroupBy(root *ast.GroupByClause) {
 	LogFuncName()
-	newNode := OpNodeInit(GroupBy, root.Items)
+	newNode := OpNodeInit(GroupBy, GroupByNode{AnalyzeGroupBy(root.Items)})
 	newNode.child = append(newNode.child, *s.Pop())
 	newNode.child[len(newNode.child)-1].parent = newNode
 	s.Push(newNode)
@@ -219,6 +227,17 @@ func AnalyzeOrderByNode(root *ast.OrderByClause) []ByItem {
 	return ret
 }
 
+func AnalyzeGroupBy(root []*ast.ByItem) []Expression {
+	var ret []Expression
+	for _, expr := range root {
+		var item Expression
+		item.Fields = make(map[string]ColumnName)
+		expr.Expr.Accept(&item)
+		ret = append(ret, item)
+	}
+	return ret
+}
+
 func AnalyzeJoinNode(root *ast.Join) []Expression {
 	if root.On == nil {
 		return nil
@@ -262,7 +281,7 @@ func AnalyzeLogicalAndExpr(root *ast.ExprNode) []Expression {
 func (expr *Expression) Enter(in ast.Node) (ast.Node, bool) {
 	switch root := in.(type) {
 	case *ast.BinaryOperationExpr:
-		expr.expr = append(expr.expr, InitSetValue("("))
+		//expr.expr = append(expr.expr, InitSetValue("("))
 	case *ast.AggregateFuncExpr:
 		return in, true
 	default:
@@ -286,7 +305,7 @@ func (expr *Expression) Leave(in ast.Node) (ast.Node, bool) {
 		expr.expr = append(expr.expr, datum)
 		//expr.expr = append(expr.expr, InitSetValue(")"))
 	case *ast.BinaryOperationExpr:
-		expr.expr = append(expr.expr, InitSetValue(root.Op.String()), InitSetValue(")"))
+		expr.expr = append(expr.expr, InitSetValue(root.Op.String()))
 	case *ast.ColumnNameExpr:
 		colName := ""
 		if root.Name.Table.String() != "" {
