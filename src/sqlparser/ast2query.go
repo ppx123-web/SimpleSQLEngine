@@ -84,7 +84,7 @@ func (s *Stack) Leave(in ast.Node) (ast.Node, bool) {
 	case *ast.TableSource:
 		s.TableSource(in)
 	case *ast.SelectStmt:
-		//s.SelectStmt()
+		s.SelectStmt()
 	case ast.ExprNode:
 		s.Where(&in)
 	case *ast.GroupByClause:
@@ -107,8 +107,8 @@ func (s *Stack) SelectStmt() {
 	case HavingFilter, GroupBy, Filter, Join:
 		TableNode := s.Pop()
 		SelectNode := s.Pop()
-		SelectNode.child = append(SelectNode.child, *TableNode)
 		TableNode.parent = SelectNode
+		SelectNode.child = append(SelectNode.child, *TableNode)
 		s.Push(SelectNode)
 	}
 
@@ -169,13 +169,16 @@ func (s *Stack) Limit(root *ast.Limit) {
 func (s *Stack) Join(root *ast.Join) {
 	LogFuncName()
 	newNode := OpNodeInit(Join, JoinNode{root.Tp, AnalyzeJoinNode(root)})
-	if root.Right != nil {
+	if newNode.Content.(JoinNode).Tp != 0 {
+		if root.Right != nil {
+			newNode.child = append(newNode.child, *s.Pop())
+			newNode.child[len(newNode.child)-1].parent = newNode
+		}
 		newNode.child = append(newNode.child, *s.Pop())
 		newNode.child[len(newNode.child)-1].parent = newNode
+		s.Push(newNode)
 	}
-	newNode.child = append(newNode.child, *s.Pop())
-	newNode.child[len(newNode.child)-1].parent = newNode
-	s.Push(newNode)
+
 }
 
 func (s *Stack) TableSource(root *ast.TableSource) {

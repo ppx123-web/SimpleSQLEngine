@@ -10,7 +10,7 @@ func (plan *LogicalPlan) PushPredicateThroughNonJoin() bool {
 	for {
 		var modify = false
 		modify = modify || PredicatePush2Project(plan)
-		modify = modify || PredicatePush2Aggregate(plan)
+		//modify = modify || PredicatePush2Aggregate(plan)
 		if !modify {
 			break
 		} else {
@@ -22,15 +22,15 @@ func (plan *LogicalPlan) PushPredicateThroughNonJoin() bool {
 }
 
 func PredicatePush2Project(root *LogicalPlan) bool {
-	if root == nil {
+	if root == nil || len(root.child) < 1 {
 		return false
 	}
 	cur := root
 	var modify = false
 	for {
 		tmp := &cur.child[0]
-		if cur.Tp == Filter && cur.child[0].Tp == Project {
-			if CheckFieldsDeterministic(cur.Content.(ProjectionNode).cols) {
+		if cur.Tp == Filter && len(cur.child[0].child) == 1 && cur.child[0].child[0].Tp == Project {
+			if CheckFieldsDeterministic(cur.child[0].child[0].Content.(ProjectionNode).cols) {
 				PredicatePush2ProjectForInstance(cur)
 				modify = true
 			}
@@ -48,14 +48,13 @@ func PredicatePush2Project(root *LogicalPlan) bool {
 
 // PredicatePush2ProjectForInstance : root.Tp = Filter, root.child[0].Tp = Project
 func PredicatePush2ProjectForInstance(root *LogicalPlan) {
-	if root.Tp != Filter || root.child[0].Tp != Project {
+	if root.Tp != Filter || root.child[0].child[0].Tp != Project {
 		LogFuncName()
 		panic("Error Root Node When Predicate push down")
 	}
-	child := root.child[0]
+	child := &root.child[0].child[0]
 	root.LogicalPlanDelete()
 	child.LogicalPlanInsert(root)
-
 }
 
 // CheckFieldsDeterministic checks the exprs whether is deterministic

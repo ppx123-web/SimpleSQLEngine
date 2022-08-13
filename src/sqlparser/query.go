@@ -10,8 +10,11 @@ import (
 )
 
 const (
-	filepath = "sql1.mdf"
+	filepath          = "test/sql1.mdf"
+	PredPushToProject = "test/PredPushToProject.mdf"
 )
+
+var tree_root *LogicalPlan
 
 func parse(sql string) (*ast.StmtNode, error) {
 	p := parser.New()
@@ -23,7 +26,7 @@ func parse(sql string) (*ast.StmtNode, error) {
 }
 
 func main() {
-	bytes, err := ioutil.ReadFile(filepath)
+	bytes, err := ioutil.ReadFile(PredPushToProject)
 	if err != nil {
 		log.Fatal("Failed to read file: " + filepath)
 	}
@@ -34,4 +37,17 @@ func main() {
 	}
 	query := GetQuery(astNode)
 	OutputQuery(query, 0)
+	tree_root = query
+	query.QueryOptimizer()
+	OutputQuery(query, 0)
 }
+
+/*
+ Project: a, b, id,
+     Filter: (b<1),
+         Table:  AS tmp
+             Project: A, B,
+                 Filter: (a>2),
+                     Table: testdata2
+
+*/

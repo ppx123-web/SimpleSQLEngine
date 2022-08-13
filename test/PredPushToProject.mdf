@@ -1,0 +1,7 @@
+select a,b,id
+from (
+  select  A,B as id
+  from testdata2
+  where a > 2
+)tmp
+where  b<1

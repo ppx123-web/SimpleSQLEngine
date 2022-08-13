@@ -246,7 +246,7 @@ func (o MyOp) String() string {
 func StrToOp(str string) MyOp {
 	for i, v := range Ops {
 		if v.Name == str {
-			return MyOp(i + 1)
+			return MyOp(i)
 		}
 	}
 	return -1
