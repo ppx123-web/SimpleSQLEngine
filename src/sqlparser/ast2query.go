@@ -173,7 +173,7 @@ func (s *Stack) OrderBy(root *ast.OrderByClause) {
 func (s *Stack) Limit(root *ast.Limit) {
 	LogFuncName()
 	e1, e2 := AnalyzeLimitNode(root)
-	newNode := OpNodeInit(Limit, LimitNode{e1, e2})
+	newNode := OpNodeInit(Limit, LimitNode{e1, e2, false})
 	newNode.child = append(newNode.child, *s.Pop())
 	newNode.child[len(newNode.child)-1].parent = newNode
 	s.Push(newNode)

@@ -208,8 +208,9 @@ func (n OrderByNode) print() {
 }
 
 type LimitNode struct {
-	Count  Expression
-	Offset Expression
+	Count   Expression
+	Offset  Expression
+	hasPush bool
 }
 
 func (n LimitNode) print() {

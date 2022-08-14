@@ -71,6 +71,11 @@ func LimitPushDownToJoin(root *LogicalPlan) bool {
 			if dst, ok := FindLogicalPlanInSingleChain(cur, Join); ok {
 				if flag, place := CanLimitPush2Join(cur, dst); flag {
 					LimitPush2JoinForInstance(cur, dst, place)
+					cur.Content = LimitNode{
+						Count:   cur.Content.(LimitNode).Count,
+						Offset:  cur.Content.(LimitNode).Offset,
+						hasPush: true,
+					}
 					modify = true
 				}
 
@@ -88,7 +93,7 @@ func LimitPushDownToJoin(root *LogicalPlan) bool {
 }
 
 func CanLimitPush2Join(limit, join *LogicalPlan) (bool, int) {
-	if limit.child[0].Tp != OrderBy {
+	if limit.child[0].Tp != OrderBy || limit.Content.(LimitNode).hasPush {
 		return false, 0
 	}
 	order := limit.child[0]
