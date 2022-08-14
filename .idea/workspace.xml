@@ -4,18 +4,7 @@
     <option name="autoReloadType" value="ALL" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e2ae7b6c-f318-4398-ad05-add6a2684865" name="Changes" comment="Finish push down simple test">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sqlparser/LimitPushDown.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/sqlparser/LimitPushDown.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sqlparser/PushPredicatoeThroughNonJoin.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/sqlparser/PushPredicatoeThroughNonJoin.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sqlparser/ast2query.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/sqlparser/ast2query.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sqlparser/optimizer.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/sqlparser/optimizer.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sqlparser/query.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/sqlparser/query.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sqlparser/types.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/sqlparser/types.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/LimitPushToJoin.mdf" beforeDir="false" afterPath="$PROJECT_DIR$/test/LimitPushToJoin.mdf" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/LimitPushToProject.mdf" beforeDir="false" afterPath="$PROJECT_DIR$/test/LimitPushToProject.mdf" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/PredPushToAggregate.mdf" beforeDir="false" afterPath="$PROJECT_DIR$/test/PredPushToAggregate.mdf" afterDir="false" />
-    </list>
+    <list default="true" id="e2ae7b6c-f318-4398-ad05-add6a2684865" name="Changes" comment="fix limit push bug" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -60,7 +49,7 @@
     "go.import.settings.migrated": "true",
     "go.sdk.automatically.set": "true",
     "last_opened_file_path": "C:/Users/zhaochaoyi/Desktop/project/SimpleSQLEngine",
-    "settings.editor.selected.configurable": "editor.preferences.fonts.default"
+    "settings.editor.selected.configurable": "preferences.pluginManager"
   }
 }]]></component>
   <component name="RecentsManager">
@@ -120,7 +109,8 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Finish push down simple test" />
-    <option name="LAST_COMMIT_MESSAGE" value="Finish push down simple test" />
+    <MESSAGE value="fix limit push bug" />
+    <option name="LAST_COMMIT_MESSAGE" value="fix limit push bug" />
   </component>
   <component name="VgoProject">
     <environment>
@@ -137,6 +127,11 @@
           <url>file://$PROJECT_DIR$/src/queryplan/queryplan.go</url>
           <line>22</line>
           <option name="timeStamp" value="9" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/src/sqlparser/LimitPushDown.go</url>
+          <line>12</line>
+          <option name="timeStamp" value="56" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
