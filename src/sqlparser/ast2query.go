@@ -37,6 +37,9 @@ func OutputQuery(root *LogicalPlan, deep int) {
 	case Project:
 		fmt.Printf("Project: ")
 		root.Content.(ProjectionNode).print()
+	case Aggregate:
+		fmt.Printf("Aggregator: ")
+		root.Content.(AggregateNode).print()
 	case Join:
 		fmt.Printf("Join: ")
 		root.Content.(JoinNode).print()
@@ -104,12 +107,22 @@ func (s *Stack) Leave(in ast.Node) (ast.Node, bool) {
 func (s *Stack) SelectStmt() {
 	LogFuncName()
 	switch s.top().Tp {
-	case HavingFilter, GroupBy, Filter, Join:
-		TableNode := s.Pop()
-		SelectNode := s.Pop()
-		TableNode.parent = SelectNode
-		SelectNode.child = append(SelectNode.child, *TableNode)
-		s.Push(SelectNode)
+	case GroupBy:
+		top := s.Pop()
+		proj := s.Pop()
+		newNode := OpNodeInit(Aggregate, AggregateNode{
+			ProjectionNode: proj.Content.(ProjectionNode),
+			GroupByNode:    top.Content.(GroupByNode),
+		})
+		newNode.child = top.child
+		s.Push(newNode)
+	case HavingFilter, Filter, Join, Table:
+		top := s.Pop()
+		proj := s.Pop()
+		top.parent = proj
+		proj.child = append(proj.child, *top)
+		s.Push(proj)
+	default:
 	}
 
 }
@@ -171,11 +184,16 @@ func (s *Stack) Join(root *ast.Join) {
 	newNode := OpNodeInit(Join, JoinNode{root.Tp, AnalyzeJoinNode(root)})
 	if newNode.Content.(JoinNode).Tp != 0 {
 		if root.Right != nil {
+			right := s.Pop()
+			left := s.Pop()
+			left.parent = newNode
+			right.parent = newNode
+			newNode.child = append(newNode.child, *left, *right)
+		} else {
 			newNode.child = append(newNode.child, *s.Pop())
 			newNode.child[len(newNode.child)-1].parent = newNode
 		}
-		newNode.child = append(newNode.child, *s.Pop())
-		newNode.child[len(newNode.child)-1].parent = newNode
+
 		s.Push(newNode)
 	}
 
@@ -212,6 +230,7 @@ func AnalyzeColumns(root []*ast.SelectField) []Expression {
 			ret = append(ret, expr)
 		} else {
 			expr := AnalyzeExprNode(&field.Expr)
+			expr.AsName = field.AsName.String()
 			ret = append(ret, expr)
 		}
 	}

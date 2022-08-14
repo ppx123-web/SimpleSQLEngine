@@ -10,6 +10,7 @@ type OpType int
 
 const (
 	Project      OpType = iota + 1 //Select Fields
+	Aggregate                      //Aggregator = Project + GroupBy
 	Join                           //Join Table
 	Table                          //Scan Table
 	GroupBy                        //GroupBy
@@ -161,6 +162,17 @@ func (n WhereFilterNode) print() {
 			fmt.Printf("%v, ", v.print())
 		}
 	}
+}
+
+type AggregateNode struct {
+	ProjectionNode
+	GroupByNode
+}
+
+func (n AggregateNode) print() {
+	n.ProjectionNode.print()
+	fmt.Printf("Select:  ")
+	n.GroupByNode.print()
 }
 
 type GroupByNode struct {
@@ -319,6 +331,7 @@ func RemoveRepeatedElement(s []ColumnName) []ColumnName {
 	return result
 }
 
+// TableInSubLogicalPlan check if table in the tree of subPlan root
 func TableInSubLogicalPlan(root *LogicalPlan, table string) bool {
 	switch root.Tp {
 	case Project:

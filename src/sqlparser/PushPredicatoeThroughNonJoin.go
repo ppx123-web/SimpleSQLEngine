@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/pingcap/tidb/parser/test_driver"
 )
 
@@ -10,7 +11,7 @@ func (plan *LogicalPlan) PushPredicateThroughNonJoin() bool {
 	for {
 		var modify = false
 		modify = modify || PredicatePush2Project(plan)
-		//modify = modify || PredicatePush2Aggregate(plan)
+		modify = modify || PredicatePush2Aggregate(plan)
 		if !modify {
 			break
 		} else {
@@ -30,7 +31,7 @@ func PredicatePush2Project(root *LogicalPlan) bool {
 	for {
 		tmp := &cur.child[0]
 		if cur.Tp == Filter && len(cur.child[0].child) == 1 && cur.child[0].child[0].Tp == Project {
-			if CheckFieldsDeterministic(cur.child[0].child[0].Content.(ProjectionNode).cols) {
+			if CanPredicatePush2Project(cur) {
 				PredicatePush2ProjectForInstance(cur)
 				modify = true
 			}
@@ -46,7 +47,15 @@ func PredicatePush2Project(root *LogicalPlan) bool {
 	return modify
 }
 
-// PredicatePush2ProjectForInstance : root.Tp = Filter, root.child[0].Tp = Project
+func CanPredicatePush2Project(root *LogicalPlan) bool {
+	if CheckFieldsDeterministic(root.child[0].child[0].Content.(ProjectionNode).cols) {
+		return true
+	} else {
+		return false
+	}
+}
+
+// PredicatePush2ProjectForInstance : root.Tp = Filter, root.child[0].Child[0].Tp = Project
 func PredicatePush2ProjectForInstance(root *LogicalPlan) {
 	if root.Tp != Filter || root.child[0].child[0].Tp != Project {
 		LogFuncName()
@@ -55,6 +64,10 @@ func PredicatePush2ProjectForInstance(root *LogicalPlan) {
 	child := &root.child[0].child[0]
 	root.LogicalPlanDelete()
 	child.LogicalPlanInsert(root)
+
+	fmt.Printf("Predicate Push Down to Project\n")
+	OutputQuery(treeRoot, 0)
+
 }
 
 // CheckFieldsDeterministic checks the exprs whether is deterministic
@@ -89,7 +102,7 @@ func PredicatePush2Aggregate(root *LogicalPlan) bool {
 	//将candidates和聚合的字段比较，获得可以下推的字段pushDown，剩余字段rest
 	//rest和nonDeterministic合并
 	//push down
-	if root == nil {
+	if root == nil || len(root.child) < 1 {
 		return false
 	}
 	cur := root
@@ -98,10 +111,9 @@ func PredicatePush2Aggregate(root *LogicalPlan) bool {
 		tmp := &cur.child[0]
 		if cur.Tp == Filter {
 			//聚合函数的字段必须是确定的且必须要有GroupBY
-			if dst, ok := FindLogicalPlanInSingleChain(cur, GroupBy); ok {
-				if CanPush2Aggregator(cur, dst) {
-					PredicatePush2AggregatorForInstance(cur, dst)
-					modify = true
+			if dst, ok := FindLogicalPlanInSingleChain(cur, Aggregate); ok {
+				if CanPush2Aggregator(dst) {
+					modify = modify || PredicatePush2AggregatorForInstance(cur, dst)
 				}
 			}
 		}
@@ -116,27 +128,11 @@ func PredicatePush2Aggregate(root *LogicalPlan) bool {
 	return modify
 }
 
-func CanPush2Aggregator(filter, aggregate *LogicalPlan) bool {
-	proj := aggregate.parent
-	if proj.Tp != Project {
-		proj = proj.parent
-	}
-	if proj.Tp != Project {
-		LogFuncName()
-		panic("Error Push to Aggregator")
-	}
-	return CheckFieldsDeterministic(proj.Content.(ProjectionNode).cols)
+func CanPush2Aggregator(aggregate *LogicalPlan) bool {
+	return CheckFieldsDeterministic(aggregate.Content.(AggregateNode).ProjectionNode.cols)
 }
 
-func PredicatePush2AggregatorForInstance(filter, aggregate *LogicalPlan) {
-	proj := aggregate.parent
-	if proj.Tp != Project {
-		proj = proj.parent
-	}
-	if proj.Tp != Project {
-		LogFuncName()
-		panic("Error Push to Aggregator")
-	}
+func PredicatePush2AggregatorForInstance(filter, aggregate *LogicalPlan) bool {
 	Exprs := filter.Content.(WhereFilterNode).Expr
 	var candidates, nonDeterministic, rest, pushDown []Expression
 	//将Filter以是否确定性分成可以下推candidates的和可以保留的nonDeterministic
@@ -148,7 +144,7 @@ func PredicatePush2AggregatorForInstance(filter, aggregate *LogicalPlan) {
 		}
 	}
 	//将candidates和聚合的字段比较，获得可以下推的字段pushDown，剩余字段rest
-	attributes := GetAggregateFunctions(proj.Content.(ProjectionNode).cols)
+	attributes := GetAggregateFunctions(aggregate.Content.(AggregateNode).cols)
 	for _, expr := range candidates {
 		var flag = true
 		for _, s := range attributes {
@@ -165,10 +161,19 @@ func PredicatePush2AggregatorForInstance(filter, aggregate *LogicalPlan) {
 	}
 	//rest和nonDeterministic合并
 	remained := append(nonDeterministic, rest...)
-	filter.Content = WhereFilterNode{Expr: remained}
-	//push down
-	newNode := OpNodeInit(Filter, WhereFilterNode{Expr: pushDown})
-	aggregate.LogicalPlanInsert(newNode)
+
+	if len(pushDown) > 0 {
+		filter.Content = WhereFilterNode{Expr: remained}
+		//push down
+		newNode := OpNodeInit(Filter, WhereFilterNode{Expr: pushDown})
+		aggregate.LogicalPlanInsert(newNode)
+
+		fmt.Printf("Predicate Push Down to Aggregator\n")
+		OutputQuery(treeRoot, 0)
+		return true
+	} else {
+		return false
+	}
 }
 
 func AggregatorInExpression(expr Expression) bool {

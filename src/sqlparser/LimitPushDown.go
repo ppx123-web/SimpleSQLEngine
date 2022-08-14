@@ -1,6 +1,9 @@
 package main
 
-import "github.com/pingcap/tidb/parser/ast"
+import (
+	"fmt"
+	"github.com/pingcap/tidb/parser/ast"
+)
 
 func (plan *LogicalPlan) LimitPushDown() (bool, *LogicalPlan) {
 	var ret = false
@@ -25,7 +28,7 @@ func LimitPushDownToProject(root *LogicalPlan) bool {
 	var modify = false
 	for {
 		tmp := &cur.child[0]
-		if cur.Tp == Filter {
+		if cur.Tp == Limit {
 			if dst, ok := FindLogicalPlanInSingleChain(cur, Project); ok {
 				LimitPush2ProjectForInstance(cur, dst)
 				modify = true
@@ -50,6 +53,10 @@ func LimitPush2ProjectForInstance(limit, proj *LogicalPlan) {
 	}
 	limit.LogicalPlanDelete()
 	proj.LogicalPlanInsert(limit)
+
+	treeRoot = treeRoot.LogicalPlanFindRoot()
+	fmt.Printf("Limit Push Down to Project\n")
+	OutputQuery(treeRoot, 0)
 }
 
 func LimitPushDownToJoin(root *LogicalPlan) bool {
@@ -60,7 +67,7 @@ func LimitPushDownToJoin(root *LogicalPlan) bool {
 	var modify = false
 	for {
 		tmp := &cur.child[0]
-		if cur.Tp == Filter {
+		if cur.Tp == Limit {
 			if dst, ok := FindLogicalPlanInSingleChain(cur, Join); ok {
 				if flag, place := CanLimitPush2Join(cur, dst); flag {
 					LimitPush2JoinForInstance(cur, dst, place)
@@ -127,4 +134,8 @@ func LimitPush2JoinForInstance(limit, join *LogicalPlan, choice int) {
 	prev.parent = newNode
 	join.child[choice-1] = *newNode
 	newNode.parent = join
+
+	treeRoot = treeRoot.LogicalPlanFindRoot()
+	fmt.Printf("Limit Push Down to Join\n")
+	OutputQuery(treeRoot, 0)
 }

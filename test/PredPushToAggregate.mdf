@@ -1,0 +1,4 @@
+select a,b from (
+  select  A,B,count(1) as c from testdata2
+  where a>2  group by a,b
+)tmp where c=1 and b<5

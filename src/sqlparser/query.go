@@ -10,11 +10,16 @@ import (
 )
 
 const (
-	filepath          = "test/sql1.mdf"
-	PredPushToProject = "test/PredPushToProject.mdf"
+	dir                 = "test/"
+	f1                  = "sql1.mdf"
+	f2                  = "sql2.mdf"
+	PredPushToProject   = "PredPushToProject.mdf"
+	PredPushToAggregate = "PredPushToAggregate.mdf"
+	LimitPushToProject  = "LimitPushToProject.mdf"
+	LimitPushToJoin     = "LimitPushToJoin.mdf"
 )
 
-var tree_root *LogicalPlan
+var treeRoot *LogicalPlan
 
 func parse(sql string) (*ast.StmtNode, error) {
 	p := parser.New()
@@ -26,9 +31,9 @@ func parse(sql string) (*ast.StmtNode, error) {
 }
 
 func main() {
-	bytes, err := ioutil.ReadFile(PredPushToProject)
+	bytes, err := ioutil.ReadFile(dir + LimitPushToJoin)
 	if err != nil {
-		log.Fatal("Failed to read file: " + filepath)
+		log.Fatal("Failed to read file")
 	}
 	astNode, err := parse(string(bytes))
 	if err != nil {
@@ -37,17 +42,7 @@ func main() {
 	}
 	query := GetQuery(astNode)
 	OutputQuery(query, 0)
-	tree_root = query
+	treeRoot = query
 	query.QueryOptimizer()
-	OutputQuery(query, 0)
+	OutputQuery(treeRoot, 0)
 }
-
-/*
- Project: a, b, id,
-     Filter: (b<1),
-         Table:  AS tmp
-             Project: A, B,
-                 Filter: (a>2),
-                     Table: testdata2
-
-*/

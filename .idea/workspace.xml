@@ -4,20 +4,17 @@
     <option name="autoReloadType" value="ALL" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e2ae7b6c-f318-4398-ad05-add6a2684865" name="Changes" comment="Changes">
-      <change afterPath="$PROJECT_DIR$/test/LimitPushToJoin.mdf" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/test/LimitPushToProject.mdf" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/test/PredPushToAggregate.mdf" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/test/PredPushToJoin.mdf" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/test/PredPushToProject.mdf" afterDir="false" />
+    <list default="true" id="e2ae7b6c-f318-4398-ad05-add6a2684865" name="Changes" comment="Finish push down simple test">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/bin/go_build_queryplan" beforeDir="false" afterPath="$PROJECT_DIR$/bin/go_build_queryplan" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sql1.mdf" beforeDir="false" afterPath="$PROJECT_DIR$/test/sql1.mdf" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sql2.mdf" beforeDir="false" afterPath="$PROJECT_DIR$/test/sql2.mdf" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sqlparser/LimitPushDown.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/sqlparser/LimitPushDown.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/sqlparser/PushPredicatoeThroughNonJoin.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/sqlparser/PushPredicatoeThroughNonJoin.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/sqlparser/ast2query.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/sqlparser/ast2query.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/sqlparser/datum.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/sqlparser/datum.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sqlparser/optimizer.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/sqlparser/optimizer.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/sqlparser/query.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/sqlparser/query.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sqlparser/types.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/sqlparser/types.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test/LimitPushToJoin.mdf" beforeDir="false" afterPath="$PROJECT_DIR$/test/LimitPushToJoin.mdf" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test/LimitPushToProject.mdf" beforeDir="false" afterPath="$PROJECT_DIR$/test/LimitPushToProject.mdf" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test/PredPushToAggregate.mdf" beforeDir="false" afterPath="$PROJECT_DIR$/test/PredPushToAggregate.mdf" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -31,7 +28,7 @@
       </list>
     </option>
   </component>
-  <component name="GOROOT" url="file:///usr/lib/go" />
+  <component name="GOROOT" url="file://$PROJECT_DIR$/../../../../../Program Files/Go" />
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
@@ -61,8 +58,9 @@
     "configurable..is.expanded": "true",
     "configurable.GoLibrariesConfigurable.is.expanded": "true",
     "go.import.settings.migrated": "true",
-    "last_opened_file_path": "/home/ppx/Project/SqlEngine/test",
-    "settings.editor.selected.configurable": "preferences.fileTypes"
+    "go.sdk.automatically.set": "true",
+    "last_opened_file_path": "C:/Users/zhaochaoyi/Desktop/project/SimpleSQLEngine",
+    "settings.editor.selected.configurable": "editor.preferences.fonts.default"
   }
 }]]></component>
   <component name="RecentsManager">
@@ -120,6 +118,10 @@
       </map>
     </option>
   </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Finish push down simple test" />
+    <option name="LAST_COMMIT_MESSAGE" value="Finish push down simple test" />
+  </component>
   <component name="VgoProject">
     <environment>
       <map>
@@ -136,22 +138,7 @@
           <line>22</line>
           <option name="timeStamp" value="9" />
         </line-breakpoint>
-        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
-          <url>file://$PROJECT_DIR$/src/sqlparser/query.go</url>
-          <line>41</line>
-          <option name="timeStamp" value="23" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
-          <url>file://$PROJECT_DIR$/src/sqlparser/ast2query.go</url>
-          <line>53</line>
-          <option name="timeStamp" value="32" />
-        </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
-    <watches-manager>
-      <configuration name="GoApplicationRunConfiguration">
-        <watch expression="tree_root" language="go" />
-      </configuration>
-    </watches-manager>
   </component>
 </project>

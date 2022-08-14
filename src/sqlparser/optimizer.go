@@ -12,10 +12,26 @@ func (plan *LogicalPlan) PushDownPredicate() {
 	plan.CombineFilters()
 	plan.PushPredicateThroughNonJoin()
 	plan.PushPredicateThroughJoin()
+	plan.LimitPushDown()
 }
 
 func (plan *LogicalPlan) CombineFilters() {
-
+	cur := plan
+	for {
+		if len(cur.child) != 1 {
+			break
+		}
+		if cur.Tp == Filter && cur.child[0].Tp == Filter {
+			cur.Content = WhereFilterNode{
+				Expr: append(cur.Content.(WhereFilterNode).Expr, cur.child[0].Content.(WhereFilterNode).Expr...),
+			}
+			cur.child[0].LogicalPlanDelete()
+		}
+		cur = &cur.child[0]
+	}
+	for _, child := range cur.child {
+		child.CombineFilters()
+	}
 }
 
 // FindLogicalPlanInSingleChain return the first found OpType OpNode in the single chain of LogicalPlan
